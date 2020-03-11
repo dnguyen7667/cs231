@@ -139,6 +139,7 @@ class TwoLayerNet(object):
         dw2 += self.reg*W2
         dw1 += self.reg*W1
 
+        # set all the gradients to grads
         grads = {'b2': db2, 'b1': db1, 'W1': dw1, 'W2': dw2}
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
@@ -195,6 +196,7 @@ class FullyConnectedNet(object):
         self.num_layers = 1 + len(hidden_dims)
         self.dtype = dtype
         self.params = {}
+        self.hidden_dims_size = len(hidden_dims)
 
         ############################################################################
         # TODO: Initialize the parameters of the network, storing all values in    #
@@ -210,7 +212,38 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+
+        # W1 = weight_scale*np.random.randn(input_dim, hidden_dim)
+        # W2 = weight_scale*np.random.randn(hidden_dim, num_classes)
+
+        # b1 = np.zeros(hidden_dim)
+        # b2 = np.zeros(num_classes)
+
+
+        # num_hid_layers = number of hidden layers
+        num_hid_layers = len(hidden_dims)
+
+        input_size = input_dim
+
+        # For the hidden layers before final output
+        for layer_idx in range(num_hid_layers):
+            # get name = W + 
+            name_w = 'W' + str(layer_idx+1)
+            name_b = 'b' + str(layer_idx+1)
+
+            self.params[name_w] = np.random.normal(loc = 0, scale = weight_scale, \
+                                    size = (input_size, hidden_dims[layer_idx]))
+
+            self.params[name_b] = np.zeros(shape = (hidden_dims[layer_idx], ))
+
+            input_size = hidden_dims[layer_idx]
+
+
+        # for final layer before output
+        self.params['W' + str(num_hid_layers+1)] = np.random.normal(0, weight_scale, (input_size, num_classes))
+
+        self.params['b' + str(num_hid_layers+1)] = np.zeros(shape = (num_classes, ))
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -242,6 +275,7 @@ class FullyConnectedNet(object):
             self.params[k] = v.astype(dtype)
 
 
+
     def loss(self, X, y=None):
         """
         Compute loss and gradient for the fully-connected net.
@@ -251,7 +285,7 @@ class FullyConnectedNet(object):
         X = X.astype(self.dtype)
         mode = 'test' if y is None else 'train'
 
-        # Set train/test mode for batchnorm params and dropout param since they
+        # Set train/test mode for batchnor maccparams and dropout param since they
         # behave differently during training and testing.
         if self.use_dropout:
             self.dropout_param['mode'] = mode
@@ -273,7 +307,40 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        
+        # First input into the network is X
+        input_ = X
+        out, cache = [], []
+
+        # for hidden layers before output
+        for layer_idx in range(self.hidden_dims_size):
+           #print (layer_idx)
+            # get name of params W and b
+            name_w = 'W'+ str(layer_idx+1)
+            name_b = 'b'+ str(layer_idx+1)
+
+            W = self.params[name_w]
+            b = self.params[name_b]
+            # calculate the output of the present layer
+
+            out_, cache_ = affine_forward(input_, W, b) 
+            out.append(out_)
+            cache.append(cache_)  
+
+            input_ = out_
+        
+
+        # For layer right before the output
+        name_w = 'W'+ str(self.hidden_dims_size+1)
+        name_b = 'b'+ str(self.hidden_dims_size+1)
+
+        W = self.params[name_w]
+        b = self.params[name_b]
+        out_, cache_ = affine_forward(input_, W, b) 
+        out.append(out_)
+        cache.append(cache_)  
+
+        scores = out_
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -300,8 +367,60 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dout = softmax_loss(scores, y)
 
+        
+
+        # get all weights W's
+        all_ws = [v for k, v in grads.items() if k.startswith('W')]
+        # square the Ws
+        all_ws_squared = [w*w for w in all_ws]
+        # add loss with 1/2 * reg * (magnitude of all W)
+        loss += 0.5*self.reg*sum(all_ws_squared)
+
+        ## OLD IMLEMENTATION
+        #placeholder for loss
+        # loss_ = 0
+        # for layer_idx in range(self.hidden_dims_size):
+        #     name_w = 'W'+ str(layer_idx+1)
+        #     W = self.params[name_w]
+            
+        #     loss_ += (W * W).sum()
+        # loss += 0.5 * self.reg*loss_
+
+        # gradients flow backwards from each affine relu layers
+        # for layers before output layer
+
+        # For layer of output
+        name_w = 'W'+ str(self.hidden_dims_size+1)
+        name_b = 'b'+ str(self.hidden_dims_size+1)
+
+        dx, dw, db = affine_backward(dout, cache.pop())
+
+        grads[name_w] = dw + self.reg*self.params[name_w]
+        grads[name_b] = db 
+        
+
+        dout = dx
+
+        for layer_idx in range(self.hidden_dims_size-1, -1, -1):
+            name_w = 'W'+ str(layer_idx+1)
+            name_b = 'b'+ str(layer_idx+1)
+             
+            dx, dw, db = affine_backward(dout, cache.pop())
+
+            grads[name_w] = dw + self.reg*self.params[name_w]
+            grads[name_b] = db 
+            
+
+            dout = dx
+
+
+        # Don't forget to add dLoss/dW2 and dLoss/dW1
+
+
+        # set all the gradients to grads
+  
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
