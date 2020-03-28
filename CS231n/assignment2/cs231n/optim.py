@@ -67,7 +67,9 @@ def sgd_momentum(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    v = config['momentum']*v - config['learning_rate']*dw
+    next_w = np.zeros_like(v)
+    next_w = w + v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -105,7 +107,14 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+
+    # Reference : https://blog.paperspace.com/intro-to-optimization-momentum-rmsprop-adam/
+    
+    cache = config['decay_rate']*config['cache'] + (1-config['decay_rate']) * dw*dw
+    config['cache'] = cache
+    step = -config['learning_rate'] * dw / np.sqrt(cache+ config['epsilon'])
+    next_w = np.zeros_like(step)
+    next_w = w + step
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -149,7 +158,24 @@ def adam(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+
+    # Impletemented used:
+    # https://stats.stackexchange.com/questions/232741/why-is-it-important-to-include-a-bias-correction-term-for-the-adam-optimizer-for
+    
+    config['t'] = config['t'] + 1
+    m = config['beta1']*config['m'] + (1 - config['beta1'])*dw
+    config['m'] = m
+    v = config['beta2']*config['v'] + (1 - config['beta2'])*dw*dw
+    config['v'] = v
+
+    bias_m = m/(1-config['beta1']**config['t'])
+    bias_v = v/(1-config['beta2']**config['t'])
+
+    step = -config['learning_rate']*bias_m/np.sqrt(bias_v+config['epsilon'])
+
+    next_w = np.zeros_like(step)
+    next_w = w + step
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
